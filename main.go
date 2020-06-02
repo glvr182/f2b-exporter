@@ -2,10 +2,14 @@ package main
 
 import (
 	"log"
+	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/alicebob/sqlittle"
 	"github.com/glvr182/f2b-exporter/provider"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // prisoner is an ip that has been (temp) banned by f2b
@@ -26,25 +30,60 @@ type prisoner struct {
 	currentlyBanned bool
 }
 
+var (
+	geocount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "f2b_banned_ip",
+			Help: "Number of banned IPs per country / region",
+		},
+		[]string{"country", "geohash", "jail", "currently_banned"},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(geocount)
+}
+
 func main() {
 	log.Println("Starting exporter")
+	go func() {
+		for {
+			time.Sleep(time.Minute)
+			if err := update(); err != nil {
+				log.Fatal(err)
+			}
+		}
+	}()
+
+	http.Handle("/metrics", promhttp.Handler())
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func update() error {
 	db, err := sqlittle.Open("/var/lib/fail2ban/fail2ban.sqlite3")
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer db.Close()
 
 	provider, err := provider.New("freeGeoIP")
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	prisoners, err := jailed(db, provider)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	log.Printf("%v", prisoners)
+	geocount.Reset()
+	for _, prisoner := range prisoners {
+		geocount.With(prometheus.Labels{"country": prisoner.country, "geohash": prisoner.geohash, "jail": prisoner.jail, "currently_banned": strconv.FormatBool(prisoner.currentlyBanned)}).Inc()
+	}
+
+	return nil
 }
 
 func jailed(db *sqlittle.DB, provider provider.Provider) ([]prisoner, error) {
