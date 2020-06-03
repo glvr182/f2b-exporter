@@ -10,6 +10,8 @@ import (
 	"github.com/glvr182/f2b-exporter/provider"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 // prisoner is an ip that has been (temp) banned by f2b
@@ -45,30 +47,37 @@ func init() {
 }
 
 func main() {
+	pflag.StringP("port", "p", "8080", "port to use for the exporter (defaults to 8080)")
+	pflag.StringP("database", "d", "/var/lib/fail2ban/fail2ban.sqlite3", "fail2ban sqlite database location")
+	pflag.StringP("remote", "r", "freeGeoIP", "remote provider to use (defaults to freeGeoIP)")
+	pflag.Parse()
+	viper.BindPFlags(pflag.CommandLine)
+	viper.SetEnvPrefix("F2B") // will be uppercased automatically
+	viper.AutomaticEnv()
 	log.Println("Starting exporter")
 	go func() {
 		for {
-			time.Sleep(time.Minute)
 			if err := update(); err != nil {
 				log.Fatal(err)
 			}
+			time.Sleep(time.Minute)
 		}
 	}()
 
 	http.Handle("/metrics", promhttp.Handler())
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":"+viper.GetString("port"), nil); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func update() error {
-	db, err := sqlittle.Open("/var/lib/fail2ban/fail2ban.sqlite3")
+	db, err := sqlittle.Open(viper.GetString("database"))
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	provider, err := provider.New("freeGeoIP")
+	provider, err := provider.New(viper.GetString("remote"))
 	if err != nil {
 		return err
 	}
