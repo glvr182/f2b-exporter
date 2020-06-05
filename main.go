@@ -51,7 +51,9 @@ func main() {
 	pflag.StringP("database", "d", "/var/lib/fail2ban/fail2ban.sqlite3", "fail2ban sqlite database location")
 	pflag.StringP("remote", "r", "freeGeoIP", "remote provider to use (defaults to freeGeoIP)")
 	pflag.Parse()
-	viper.BindPFlags(pflag.CommandLine)
+	if err := viper.BindPFlags(pflag.CommandLine); err != nil {
+		log.Fatal(err)
+	}
 	viper.SetEnvPrefix("F2B") // will be uppercased automatically
 	viper.AutomaticEnv()
 	log.Println("Starting exporter")
@@ -104,7 +106,7 @@ func jailed(db *sqlittle.DB, provider provider.Provider) ([]prisoner, error) {
 		err       error
 	)
 
-	db.SelectDone("bans", func(r sqlittle.Row) bool {
+	if err := db.SelectDone("bans", func(r sqlittle.Row) bool {
 		err = r.Scan(&p.jail, &p.ip, &p.timeofban, &p.bantime)
 		if err != nil {
 			return true
@@ -124,7 +126,9 @@ func jailed(db *sqlittle.DB, provider provider.Provider) ([]prisoner, error) {
 		prisoners = append(prisoners, p)
 		return false
 
-	}, "jail", "ip", "timeofban", "bantime")
+	}, "jail", "ip", "timeofban", "bantime"); err != nil {
+		log.Fatal(err)
+	}
 
 	if err != nil {
 		return nil, err
