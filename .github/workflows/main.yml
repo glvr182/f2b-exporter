@@ -12,28 +12,23 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+    
     - name: Set up Go 1.x
       uses: actions/setup-go@v2
       with:
         go-version: ^1.14
       id: go
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
-    
     - name: Set env
       run: echo ::set-env name=RELEASE_VERSION::${GITHUB_REF#refs/*/}
 
     - name: Get dependencies
       run: |
-        go get -v -t -d ./...
-        if [ -f Gopkg.toml ]; then
-            curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-            dep ensure
-        fi
+        go mod tidy
 
-    - name: golangci-lint
+    - name: Lint
       uses: golangci/golangci-lint-action@v1
       with:
         version: v1.27
@@ -44,10 +39,10 @@ jobs:
     - name: Build
       run: go build -v .
 
-    - name: Build
+    - name: Docker build
       run: docker build -t ${GITHUB_REPOSITORY}:latest -t ${GITHUB_REPOSITORY}:${{ env.RELEASE_VERSION }} .
 
-    - name: Push latest to docker hub
+    - name: Docker push
       uses: docker/build-push-action@v1
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
