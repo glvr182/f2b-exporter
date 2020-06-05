@@ -68,3 +68,28 @@ scrape_configs:
     static_configs:
     - targets: ['f2b-exporter:8080']
 ```
+
+## Queries
+You can get the metrics by calling f2b_banned_ip in prometheus.  
+This will return a general unfiltered list of data, which is already usable.
+
+If however, you want to filer the data you can use one of the following filters:
+ * country
+ * currently_banned
+ * jail
+ * geohash
+
+These are some example queries:
+
+#### Total banned ips
+```
+sum(f2b_banned_ip)
+```
+#### Total currently banned ips
+```
+sum(f2b_banned_ip{currently_banned="true"})
+```
+### Total banned ips per country
+```
+sum(f2b_banned_ip) by (country)
+```
