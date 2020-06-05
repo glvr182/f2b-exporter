@@ -21,9 +21,6 @@ jobs:
         go-version: ^1.14
       id: go
 
-    - name: Set env
-      run: echo ::set-env name=RELEASE_VERSION::${GITHUB_REF#refs/*/}
-
     - name: Get dependencies
       run: |
         go mod tidy
@@ -39,10 +36,7 @@ jobs:
     - name: Build
       run: go build -v .
 
-    - name: Docker build
-      run: docker build -t ${GITHUB_REPOSITORY}:latest -t ${GITHUB_REPOSITORY}:${{ env.RELEASE_VERSION }} .
-
-    - name: Docker push
+    - name: Docker
       uses: docker/build-push-action@v1
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
