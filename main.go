@@ -70,6 +70,7 @@ func main() {
 	}
 }
 
+// update refreshes the prometheus metrics
 func update() error {
 	db, err := sqlittle.Open(viper.GetString("database"))
 	if err != nil {
@@ -95,6 +96,7 @@ func update() error {
 	return nil
 }
 
+// jailed is a helper function which fetches all the prisoners in the given database
 func jailed(db *sqlittle.DB, provider provider.Provider) ([]prisoner, error) {
 	var (
 		prisoners []prisoner
